@@ -2,6 +2,7 @@
 
 import fs = require('fs');
 import path = require('path');
+import sha256 = require('hash.js/lib/hash/sha/256');
 
 import {
   parse,
@@ -47,6 +48,7 @@ export type ExtractGQLOptions = {
   queryTransformers?: QueryTransformer[],
   extension?: string,
   inJsCode?: boolean,
+  useHash?: boolean,
 };
 
 export class ExtractGQL {
@@ -65,6 +67,9 @@ export class ExtractGQL {
 
   // Whether to look for standalone .graphql files or template literals in JavaScript code
   public inJsCode: boolean = false;
+
+  // Whether to use id or use a hash of the query
+  public useHash: boolean = false;
 
   // The template literal tag for GraphQL queries in JS code
   public literalTag: string = 'gql';
@@ -105,18 +110,28 @@ export class ExtractGQL {
     });
   }
 
+  public static generateHash(query: string): string {
+    return (
+      sha256()
+        .update(query)
+        .digest('hex')
+    );
+  }
+
   constructor({
     inputFilePath,
     outputFilePath = 'extracted_queries.json',
     queryTransformers = [],
     extension = 'graphql',
     inJsCode = false,
+    useHash = false,
   }: ExtractGQLOptions) {
     this.inputFilePath = inputFilePath;
     this.outputFilePath = outputFilePath;
     this.queryTransformers = queryTransformers;
     this.extension = extension;
     this.inJsCode = inJsCode;
+    this.useHash = useHash;
   }
 
   // Add a query transformer to the end of the list of query transformers.
@@ -150,10 +165,19 @@ export class ExtractGQL {
     const queryDefinitions = getOperationDefinitions(transformedDocument);
     const result: OutputMap = {};
     queryDefinitions.forEach((transformedDefinition) => {
-      const transformedQueryWithFragments = this.getQueryFragments(transformedDocument, transformedDefinition);
+      const transformedQueryWithFragments = this.getQueryFragments(
+        transformedDocument,
+        transformedDefinition,
+      );
       transformedQueryWithFragments.definitions.unshift(transformedDefinition);
-      const docQueryKey = this.getQueryDocumentKey(transformedQueryWithFragments);
+      const docQueryKey = this.getQueryDocumentKey(
+        transformedQueryWithFragments,
+      );
+      if (this.useHash) {
+        result[docQueryKey] = ExtractGQL.generateHash(docQueryKey);
+      } else {
       result[docQueryKey] = this.getQueryId();
+      }
     });
     return result;
   }
@@ -364,6 +388,10 @@ export const main = (argv: YArgsv) => {
 
   if (argv['js']) {
     options.inJsCode = true;
+  }
+
+  if (argv['hash']) {
+    options.useHash = true;
   }
 
   if (argv['extension']) {

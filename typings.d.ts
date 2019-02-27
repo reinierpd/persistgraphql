@@ -18,3 +18,5 @@ declare module 'deep-assign' {
   function deepAssign(...objects: any[]): any;
   export = deepAssign;
 }
+
+declare module 'hash.js/lib/hash/sha/256'
