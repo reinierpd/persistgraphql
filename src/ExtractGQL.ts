@@ -10,7 +10,6 @@ import {
   DocumentNode,
   OperationDefinitionNode,
   FragmentDefinitionNode,
-  print,
   DefinitionNode,
   separateOperations,
 } from 'graphql';
@@ -19,7 +18,6 @@ import {
   getOperationDefinitions,
   getFragmentNames,
   isFragmentDefinition,
-  isOperationDefinition,
 } from './extractFromAST';
 
 import {
@@ -32,7 +30,6 @@ import {
   getQueryDocumentKey,
   sortFragmentsByName,
   applyQueryTransformers,
-  TransformedQueryWithId,
   OutputMap,
   QueryTransformer,
 } from './common';
