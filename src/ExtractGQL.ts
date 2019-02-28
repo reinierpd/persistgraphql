@@ -3,6 +3,7 @@
 import fs = require('fs');
 import path = require('path');
 import sha256 = require('hash.js/lib/hash/sha/256');
+import yaml = require('js-yaml');
 
 import {
   parse,
@@ -324,7 +325,15 @@ export class ExtractGQL {
     return new Promise<void>((resolve, reject) => {
       fs.open(outputFilePath, 'w+', (openErr, fd) => {
         if (openErr) { reject(openErr); }
-        fs.write(fd, JSON.stringify(outputMap), (writeErr, written, str) => {
+
+        let data
+        if (outputFilePath.endsWith('.yaml') || outputFilePath.endsWith('.yml')) {
+          data = yaml.safeDump(outputMap)
+        } else {
+          data = JSON.stringify(outputMap)
+        }
+
+        fs.write(fd, data, (writeErr, written, str) => {
           if (writeErr) { reject(writeErr); }
           resolve();
         });
