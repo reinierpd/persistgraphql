@@ -45,6 +45,12 @@ By default, the output will be placed in `extracted_queries.json`. An output fil
 persistgraphql index.ts output.json
 ```
 
+or if you want to output to yaml format
+
+```
+persistgraphql index.ts output.yaml
+```
+
 ## Adding Typenames to Extracted Queries
 
 It can also take the `--add_typename` flag which will apply a query transformation to the query documents, adding the `__typename` field at every level of the query. You must pass this option if your client code uses this query transformation.
@@ -55,18 +61,36 @@ persistgraphql src/ --add_typename
 
 ## Extracting Queries from TypeScript
 
-To extract GraphQL queries from TypeScript files, use `--js --extension=ts`.
+To extract GraphQL queries from TypeScript files, use `--extension=ts`.
 
 ```
-persistgraphql src/index.js --js --extension=ts
+persistgraphql src/ --extension=ts
 ```
 
 ## Extracting Queries from JavaScript
 
-It is also possible to extract GraphQL queries from JavaScript files using `--extension=js --js`.
+It is also possible to extract GraphQL queries from JavaScript files using `--extension=js`.
 
 ```
-persistgraphql src/index.js --js --extension=js
+persistgraphql src/ --extension=js
+```
+
+Or from multiple types
+
+```
+persistgraphql src/ --extension=js,ts,graphql
+```
+
+## Use a hash instead of an incremented ID
+
+```
+persistgraphql src/ --hash
+```
+
+## change the output schema
+
+```
+persistgraphql src/ --to-objects
 ```
 
 # Apollo Client Network Interface
