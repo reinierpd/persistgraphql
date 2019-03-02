@@ -45,7 +45,7 @@ export type ExtractGQLOptions = {
   inputFilePath: string,
   outputFilePath?: string,
   queryTransformers?: QueryTransformer[],
-  extension?: string,
+  extension?: string[],
   toObjects?: boolean,
   useHash?: boolean,
 };
@@ -62,7 +62,7 @@ export class ExtractGQL {
   public queryTransformers: QueryTransformer[] = [];
 
   // The file extension to load queries from
-  public extension: string;
+  public extension: string[];
 
   // Do we output as objects
   public toObjects: boolean = false;
@@ -121,14 +121,18 @@ export class ExtractGQL {
     inputFilePath,
     outputFilePath = 'extracted_queries.json',
     queryTransformers = [],
-    extension = 'graphql',
+    extension,
     toObjects = false,
     useHash = false,
   }: ExtractGQLOptions) {
     this.inputFilePath = inputFilePath;
     this.outputFilePath = outputFilePath;
     this.queryTransformers = queryTransformers;
-    this.extension = extension;
+    if (extension && extension[0] && extension[0] !== '') {
+      this.extension = (extension);
+    } else {
+      this.extension = ['graphql'];
+    }
     this.toObjects = toObjects;
     this.useHash = useHash;
   }
@@ -231,8 +235,8 @@ export class ExtractGQL {
     return Promise.resolve().then(() => {
       const extension = ExtractGQL.getFileExtension(inputFile);
 
-      if (extension === this.extension) {
-        if (this.extension === 'js' || this.extension === 'jsx') {
+      if (this.extension.includes(extension)) {
+        if (['js', 'jsx', 'ts', 'tsx'].includes(extension)) {
           // Read from a JS file
           return ExtractGQL.readFile(inputFile).then((result) => {
             const literalContents = findTaggedTemplateLiteralsInJS(result, this.literalTag);
@@ -417,7 +421,7 @@ export const main = (argv: YArgsv) => {
   }
 
   if (argv['extension']) {
-    options.extension = argv['extension'];
+    options.extension = argv['extension'].split(',');
   }
 
   new ExtractGQL(options).extract();
