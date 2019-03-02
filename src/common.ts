@@ -16,6 +16,13 @@ export interface OutputMap {
   [key: string]: QueryId;
 }
 
+export interface OutputObject {
+  queryName: string;
+  queryId: string;
+  active: boolean;
+  query: string;
+}
+
 export type QueryId = number | string;
 export interface TransformedQueryWithId {
   transformedQuery: DocumentNode;

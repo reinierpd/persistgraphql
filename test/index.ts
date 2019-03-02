@@ -297,18 +297,18 @@ describe('ExtractGQL', () => {
     it('should sort fragments correctly', () => {
       const myegql = new ExtractGQL({ inputFilePath: 'empty' });
       const doc = gql`
-        fragment d on Author { x } 
+        fragment d on Author { x }
         fragment b on Author { x }
-        fragment c on Author { x } 
+        fragment c on Author { x }
         fragment a on Author { x }
-        query { 
+        query {
           ...a
           ...b
           ...c
           ...d
         }`;
       const result = gql`
-        query { 
+        query {
           ...a
           ...b
           ...c
@@ -316,7 +316,7 @@ describe('ExtractGQL', () => {
         }
         fragment a on Author { x }
         fragment b on Author { x }
-        fragment c on Author { x } 
+        fragment c on Author { x }
         fragment d on Author { x }`;
       const map = myegql.createMapFromDocument(doc);
       const keys = Object.keys(map);
@@ -463,7 +463,6 @@ describe('ExtractGQL', () => {
       const jsEgql = new ExtractGQL({
         inputFilePath: 'idk',
         extension: 'js',
-        inJsCode: true,
         outputFilePath: 'idk',
       });
 

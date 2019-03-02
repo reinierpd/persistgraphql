@@ -31,6 +31,7 @@ import {
   sortFragmentsByName,
   applyQueryTransformers,
   OutputMap,
+  OutputObject,
   QueryTransformer,
 } from './common';
 
@@ -45,7 +46,7 @@ export type ExtractGQLOptions = {
   outputFilePath?: string,
   queryTransformers?: QueryTransformer[],
   extension?: string,
-  inJsCode?: boolean,
+  toObjects?: boolean,
   useHash?: boolean,
 };
 
@@ -63,8 +64,8 @@ export class ExtractGQL {
   // The file extension to load queries from
   public extension: string;
 
-  // Whether to look for standalone .graphql files or template literals in JavaScript code
-  public inJsCode: boolean = false;
+  // Do we output as objects
+  public toObjects: boolean = false;
 
   // Whether to use id or use a hash of the query
   public useHash: boolean = false;
@@ -96,9 +97,9 @@ export class ExtractGQL {
   }
 
   // Checks if a given path points to a directory.
-  public static isDirectory(path: string): Promise<boolean> {
+  public static isDirectory(_path: string): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      fs.stat(path, (err, stats) => {
+      fs.stat(_path, (err, stats) => {
         if (err) {
           reject(err);
         } else {
@@ -121,14 +122,14 @@ export class ExtractGQL {
     outputFilePath = 'extracted_queries.json',
     queryTransformers = [],
     extension = 'graphql',
-    inJsCode = false,
+    toObjects = false,
     useHash = false,
   }: ExtractGQLOptions) {
     this.inputFilePath = inputFilePath;
     this.outputFilePath = outputFilePath;
     this.queryTransformers = queryTransformers;
     this.extension = extension;
-    this.inJsCode = inJsCode;
+    this.toObjects = toObjects;
     this.useHash = useHash;
   }
 
@@ -158,10 +159,11 @@ export class ExtractGQL {
 
   // Create an OutputMap from a GraphQL document that may contain
   // queries, mutations and fragments.
-  public createMapFromDocument(document: DocumentNode): OutputMap {
+  public createMapFromDocument(document: DocumentNode): OutputMap | OutputObject[] {
     const transformedDocument = this.applyQueryTransformers(document);
     const queryDefinitions = getOperationDefinitions(transformedDocument);
-    const result: OutputMap = {};
+    const mapResult: OutputMap = {};
+    const arrayResult: OutputObject[] = [];
     queryDefinitions.forEach((transformedDefinition) => {
       const transformedQueryWithFragments = this.getQueryFragments(
         transformedDocument,
@@ -171,19 +173,29 @@ export class ExtractGQL {
       const docQueryKey = this.getQueryDocumentKey(
         transformedQueryWithFragments,
       );
-      if (this.useHash) {
-        result[docQueryKey] = ExtractGQL.generateHash(docQueryKey);
+      if (this.toObjects) {
+        const queryId = ExtractGQL.generateHash(docQueryKey);
+        arrayResult.push({
+          queryName: 'name',
+          queryId,
+          active: true,
+          query: docQueryKey,
+        });
       } else {
-      result[docQueryKey] = this.getQueryId();
+        if (this.useHash) {
+          mapResult[docQueryKey] = ExtractGQL.generateHash(docQueryKey);
+        } else {
+          mapResult[docQueryKey] = this.getQueryId();
+        }
       }
     });
-    return result;
+    return this.toObjects ? arrayResult : mapResult;
   }
 
   // Given the path to a particular `.graphql` file, read it, extract the queries
   // and return the promise to an OutputMap. Used primarily for unit tests.
-  public processGraphQLFile(graphQLFile: string): Promise<OutputMap> {
-    return new Promise<OutputMap>((resolve, reject) => {
+  public processGraphQLFile(graphQLFile: string): Promise<OutputMap | OutputObject[]> {
+    return new Promise<OutputMap | OutputObject[]>((resolve, reject) => {
       ExtractGQL.readFile(graphQLFile).then((fileContents) => {
         const graphQLDocument = parse(fileContents);
 
@@ -195,7 +207,7 @@ export class ExtractGQL {
   }
 
   // Creates an OutputMap from an array of GraphQL documents read as strings.
-  public createOutputMapFromString(docString: string): OutputMap {
+  public createOutputMapFromString(docString: string): OutputMap | OutputObject[] {
     const doc = parse(docString);
     const docMap = separateOperations(doc);
 
@@ -204,7 +216,11 @@ export class ExtractGQL {
       return this.createMapFromDocument(document);
     });
 
-    return (_.merge({} as OutputMap, ...resultMaps) as OutputMap);
+    if (this.toObjects) {
+      return [].concat(...resultMaps) as OutputObject[];
+    } else {
+      return (_.merge({} as OutputMap, ...resultMaps) as OutputMap);
+    }
   }
 
   public readGraphQLFile(graphQLFile: string): Promise<string> {
@@ -216,7 +232,7 @@ export class ExtractGQL {
       const extension = ExtractGQL.getFileExtension(inputFile);
 
       if (extension === this.extension) {
-        if (this.inJsCode) {
+        if (this.extension === 'js' || this.extension === 'jsx') {
           // Read from a JS file
           return ExtractGQL.readFile(inputFile).then((result) => {
             const literalContents = findTaggedTemplateLiteralsInJS(result, this.literalTag);
@@ -236,8 +252,8 @@ export class ExtractGQL {
   // Processes an input path, which may be a path to a GraphQL file
   // or a directory containing GraphQL files. Creates an OutputMap
   // instance from these files.
-  public processInputPath(inputPath: string): Promise<OutputMap> {
-    return new Promise<OutputMap>((resolve, reject) => {
+  public processInputPath(inputPath: string): Promise<OutputMap | OutputObject[]> {
+    return new Promise<OutputMap | OutputObject[]>((resolve, reject) => {
       this.readInputPath(inputPath).then((docString: string) => {
         resolve(this.createOutputMapFromString(docString));
       }).catch((err) => {
@@ -318,16 +334,16 @@ export class ExtractGQL {
   }
 
   // Writes an OutputMap to a given file path.
-  public writeOutputMap(outputMap: OutputMap, outputFilePath: string): Promise<void> {
+  public writeOutputMap(outputMap: OutputMap | OutputObject[], outputFilePath: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       fs.open(outputFilePath, 'w+', (openErr, fd) => {
         if (openErr) { reject(openErr); }
 
-        let data
+        let data;
         if (outputFilePath.endsWith('.yaml') || outputFilePath.endsWith('.yml')) {
-          data = yaml.safeDump(outputMap)
+          data = yaml.safeDump({queries: outputMap});
         } else {
-          data = JSON.stringify(outputMap)
+          data = JSON.stringify(outputMap);
         }
 
         fs.write(fd, data, (writeErr, written, str) => {
@@ -392,12 +408,12 @@ export const main = (argv: YArgsv) => {
     queryTransformers,
   };
 
-  if (argv['js']) {
-    options.inJsCode = true;
-  }
-
   if (argv['hash']) {
     options.useHash = true;
+  }
+
+  if (argv['to-objects']) {
+    options.toObjects = true;
   }
 
   if (argv['extension']) {
