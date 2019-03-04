@@ -179,8 +179,11 @@ export class ExtractGQL {
       );
       if (this.toObjects) {
         const queryId = ExtractGQL.generateHash(docQueryKey);
+        const RE = /(?:query|mutation)\s+(\w+)\s*[({]/;
+        const matches = RE.exec(docQueryKey);
+
         arrayResult.push({
-          queryName: 'name',
+          queryName: matches ? matches[1] : queryId.slice(0, 10),
           queryId,
           active: true,
           query: docQueryKey,
