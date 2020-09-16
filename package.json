@@ -1,5 +1,5 @@
 {
-  "name": "@obytes/persistgraphql",
+  "name": "@reinierpd/persistgraphql",
   "version": "1.0.2",
   "description": "A build tool for GraphQL projects.",
   "main": "lib/index.js",
